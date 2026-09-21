@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+
+# Telegram credentials and authenticated sessions
+api-creds.txt
+token.txt
+user.session
+user.session-journal
+*.session
+*.session-journal
+
+# Runtime diagnostics
+tui-error.log
+*.log
+
+# Local tooling
+.idea/
+.vscode/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tgchat"
+version = "0.1.0"
+description = "Small Windows-friendly Telegram terminal clients: Bot API, Telethon CLI, and Textual TUI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "KietDev-JS" }]
+dependencies = [
+  "telethon>=1.45,<2",
+  "rich>=14,<15",
+  "textual>=8,<9",
+]
+
+[project.scripts]
+tgchat-bot = "tgchat:main"
+tgchat-user = "tguser:main"
+tgchat-tui = "tguser_tui:main"
+
+[tool.setuptools]
+py-modules = ["tgchat", "tguser", "tguser_tui"]
