@@ -124,6 +124,7 @@ class TgChatApp(App[None]):
     #chatbar { padding: 0 1; text-style: bold; background: $surface;
                border-bottom: solid $error; }
     #msgs { height: 1fr; }
+    #typing { height: 1; padding: 0 1; color: $accent; text-style: italic; }
     Static.bubble { width: auto; max-width: 75%; padding: 0 1; }
     Static.them { border: round $secondary; background: $surface; }
     Static.me { border: round $warning; background: $error; color: $background; }
@@ -149,6 +150,8 @@ class TgChatApp(App[None]):
         self.me = me
         self.active = None
         self._loaded: set[int] = set()
+        self._typing: dict[int, tuple[str, float]] = {}
+        self._frame = 0
 
     def compose(self) -> ComposeResult:
         yield Static("▚▞" * 256, id="hazard")
@@ -158,6 +161,7 @@ class TgChatApp(App[None]):
         )
         yield Static("◤ NO LINK ◢  awaiting signal", id="chatbar")
         yield ListView(id="msgs")
+        yield Static("", id="typing")
         with Vertical(id="bottom"):
             yield Input(
                 placeholder="▸ transmit...  [Enter] send  /chats  /exit",
@@ -168,6 +172,27 @@ class TgChatApp(App[None]):
     def on_mount(self) -> None:
         self.query_one("#composer", Input).focus()
         self.add_system("F2 = switch chat, /chat <id>, /exit, Ctrl+C to quit")
+        self.set_interval(0.25, self._tick_typing)
+
+    def set_typing(self, chat_id: int, who: str, typing: bool) -> None:
+        if typing:
+            self._typing[chat_id] = (who, time.monotonic() + 6.0)
+        else:
+            self._typing.pop(chat_id, None)
+        self._tick_typing()
+
+    def _tick_typing(self) -> None:
+        now = time.monotonic()
+        self._typing = {k: v for k, v in self._typing.items() if v[1] > now}
+        self._frame += 1
+        bar = self.query_one("#typing", Static)
+        entry = self._typing.get(self.active)
+        if entry is None:
+            bar.update("")
+            return
+        spin = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[self._frame % 10]
+        dots = "●" * (self._frame % 4) + "○" * (3 - self._frame % 4)
+        bar.update(f"{spin} {entry[0]} is typing {dots}")
 
     def set_active(self, chat_id: int) -> None:
         if self.active == chat_id:
@@ -219,6 +244,7 @@ class TgChatApp(App[None]):
         messages.scroll_end()
 
     def add_incoming(self, chat_id: int, who: str, text: str) -> None:
+        self.set_typing(chat_id, who, False)
         if self.active is None:
             self.set_active(chat_id)
         header = Text()
@@ -297,6 +323,18 @@ def main() -> None:
         app = holder.get("app")
         if app is not None:
             app.call_from_thread(app.add_incoming, event.chat_id, who, text)
+
+    @client.on(events.UserUpdate)
+    async def on_typing(event: events.UserUpdate.Event) -> None:
+        app = holder.get("app")
+        if app is None or event.chat_id is None:
+            return
+        try:
+            user = await event.get_user()
+            who = getattr(user, "first_name", None) or str(event.chat_id)
+        except Exception:
+            who = str(event.chat_id)
+        app.call_from_thread(app.set_typing, event.chat_id, who, bool(event.typing))
 
     async def connect() -> None:
         await client.start()
